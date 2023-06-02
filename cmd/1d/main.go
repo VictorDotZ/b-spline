@@ -6,7 +6,8 @@ import (
 	"math"
 	"os"
 
-	bspline "github.com/VictorDotZ/bspline/pkg/bspline"
+	"github.com/VictorDotZ/bspline/pkg/bspline"
+	"github.com/VictorDotZ/bspline/pkg/points"
 )
 
 func usage() {
@@ -23,58 +24,50 @@ var h float64
 
 func init() {
 	flag.Float64Var(&x_0, "x_0", 0.0, "[x_0; x_1]")
-	flag.Float64Var(&x_1, "x_1", math.Pi*2.0, "[x_0; x_1]")
-	flag.Float64Var(&h, "h", 1e-2, "scaled step")
-	flag.IntVar(&N, "N", 4, "(x_1 - x_0) / N")
-	flag.IntVar(&degree, "degree", 3, "(x_1 - x_0) / N")
-
+	flag.Float64Var(&x_1, "x_1", math.Pi*2, "[x_0; x_1]")
+	flag.Float64Var(&h, "h", 1e-2, "t_0 = 0; t_{i+1} = t_i + h; t_n = 1")
+	flag.IntVar(&N, "N", 7, "(x_1 - x_0) / (N - 1)")
+	flag.IntVar(&degree, "degree", 4, "degree")
 }
 
 func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	D := 2
-
 	f := func(x float64) float64 {
 		return math.Sin(x)
 	}
 
-	points := make([][]float64, N)
+	controlPoints := make([]points.Point2d, N)
 	hh := (x_1 - x_0) / float64(N-1)
 	for i := 0; i < N; i++ {
 		x_i := hh*float64(i) + x_0
-		points[i] = []float64{x_i, f(x_i)}
+		controlPoints[i] = points.Point2d{X: x_i, Y: f(x_i)}
 	}
 
-	// for i := 0; i < N; i++ {
-	// fmt.Printf("%.10f\t%.10f\n", points[i*D+0], points[i*D+1])
-	// }
+	knots := make([]float64, degree+N+1)
 
-	knots := make([]float64, N+degree+1)
-	for i := 0; i < degree+1; i++ {
-		knots[i] = float64(0)
+	// left pad
+	for i := 0; i <= degree; i++ {
+		knots[i] = 0.0
+	}
+	// right pad
+	for i := N; i <= degree+N; i++ {
+		knots[i] = 1.0
 	}
 
+	// internal knots
 	for i := degree + 1; i < N; i++ {
-		knots[i] = float64(i - degree)
+		knots[i] = float64(i-degree) / float64(N-degree+1)
 	}
 
-	for i := N; i < degree+N+1; i++ {
-		knots[i] = knots[N] + 1
-	}
+	bspline := bspline.BSpline{
+		Degree:        degree,
+		ControlPoints: controlPoints,
+		Knots:         knots,
+		H:             h}
 
-	fmt.Println(knots)
-
-	// for i := 0; i < n+degree+1; i++ {
-	// 	knots[i] = float64(i)
-	// }
-
-	bspline := bspline.NewBSpline(degree, N, D, points, make([]float64, 0), make([]float64, 0), h)
-
-	x, y := bspline.Interpolate()
-
-	// fmt.Println(len(x))
+	x, y := bspline.InterpolateOnRange()
 
 	for i := 0; i < len(x); i++ {
 		fmt.Printf("%.10f\t%.10f\n", x[i], y[i])
