@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"math"
 	"os"
 
@@ -43,6 +44,17 @@ func main() {
 	for i := 0; i < N; i++ {
 		x_i := hh*float64(i) + x_0
 		controlPoints[i] = points.Point2d{X: x_i, Y: f(x_i)}
+	}
+
+	file, err := os.Create("true.txt")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	defer file.Close()
+
+	for _, p := range controlPoints {
+		fmt.Fprintf(file, "%.10f\t%.10f\n", p.X, p.Y)
 	}
 
 	knots := make([]float64, degree+N+1)
